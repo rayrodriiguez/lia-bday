@@ -9,7 +9,7 @@ Feito em HTML, CSS e JavaScript puro, sem bibliotecas. Tudo é desenhado num `<c
 ```
 index.html          site pronto (gerado a partir de src/)
 foto.jpg            a foto do coração e da carta
-musicas/            uma música para cada ambiente
+*.mp3               uma música para cada ambiente
 src/
   head.html         estilos e a estrutura da página
   core.js           motor: cenas, legendas, balões de fala, partículas, áudio e troca de disco
