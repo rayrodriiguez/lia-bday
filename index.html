@@ -259,6 +259,10 @@ function setScene(name) {
   document.body.dataset.tone = cur.tone || "dark";
   music(cur.music || name);
   if (cur.enter) cur.enter();
+  if (name === "grama" && AU.c && !MUSICAS.piquenique && !AU.picnicBusy) {
+    AU.picnicBusy = true;
+    setTimeout(() => renderTrackToUrl("piquenique", PICNIC.total * PICNIC.beat).then(url => { if (url) MUSICAS.piquenique = url; }), 2500);
+  }
 }
 async function go(name, { color = "#05060f", out = 1000, inn = 1100 } = {}) {
   fadeColor = color;
@@ -518,12 +522,20 @@ function audioInit() {
   const nd = AU.noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 }
 
-function unlockMusicFiles() {
+function prepareDecks() {
+  if (AU.pool) return;
   AU.pool = [new Audio(), new Audio()];
   const first = [MUSICAS.universo, MUSICAS.estrelas];
   AU.pool.forEach((el, i) => {
-    el.preload = i ? "metadata" : "auto"; el.muted = true;
-    el.src = first[i] || first[0] || "";
+    el.preload = i ? "metadata" : "auto";
+    if (first[i]) el.src = first[i];
+  });
+}
+function unlockMusicFiles() {
+  prepareDecks();
+  AU.pool.forEach(el => {
+    if (!el.src) return;
+    el.muted = true;
     const p = el.play();
     if (p) p.then(() => { if (AU.track && AU.track.el === el) return; el.pause(); }).catch(() => {});
   });
@@ -830,15 +842,18 @@ function music(name) {
   if (!file) return startSynth();
   const el = freeDeck() || new Audio();
   const abs = new URL(file, location.href).href;
-  if (el.src !== abs) el.src = file;
+  const fresh = el.src !== abs;
+  if (fresh) el.src = file;
   el.loop = true; el.volume = 0; el.muted = AU.muted; el.playbackRate = 1;
-  try { el.currentTime = 0; } catch (e) {}
+  if (!fresh && el.paused && el.currentTime > 0) { try { el.currentTime = 0; } catch (e) {} }
   let fell = false;
   const fallback = () => { if (fell) return; fell = true; if (AU.track && AU.track.el === el) AU.track = null; startSynth(); };
   el.addEventListener("error", fallback);
   AU.track = { el, stop: () => el.pause() };
   const p = el.play();
-  if (p) p.then(() => { let v = 0; const iv = setInterval(() => { v = Math.min(.9, v + .04); el.volume = v; if (v >= .9 || AU.track?.el !== el) clearInterval(iv); }, 100); }).catch(fallback);
+  const step = AU.firstSong ? .04 : .3;
+  AU.firstSong = true;
+  if (p) p.then(() => { let v = 0; const iv = setInterval(() => { v = Math.min(.9, v + step); el.volume = v; if (v >= .9 || AU.track?.el !== el) clearInterval(iv); }, 100); }).catch(fallback);
   }
 }
 
@@ -6299,12 +6314,9 @@ S.final = {
 resize();
 cur = S.universo; curName = "universo";
 requestAnimationFrame(frame);
+prepareDecks();
 $("startBtn").addEventListener("click", () => {
   audioInit(); audioResume(); unlockMusicFiles();
-
-  if (!MUSICAS.piquenique) setTimeout(() => {
-    renderTrackToUrl("piquenique", PICNIC.total * PICNIC.beat).then(url => { if (url) MUSICAS.piquenique = url; });
-  }, 4000);
   $("start").classList.add("gone");
   $("mute").hidden = false;
   sfx.chime(4);
